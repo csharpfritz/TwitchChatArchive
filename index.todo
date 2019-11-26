@@ -1,7 +1,8 @@
-☐ Subscribe to 'Stream concluded'
-☐ Receive 'Stream Concluded'
+✔ Subscribe to 'Stream concluded' @done(19-11-26 12:37)
+✔ Receive 'Stream Concluded' @done(19-11-26 12:37)
   ☐ Trigger fetch of chat 
   ☐ Store in Azure Blog storage
+  ☐ Extend subscription when lease is ending
 
 
 ☐ Ammend Commit with YouTube links
