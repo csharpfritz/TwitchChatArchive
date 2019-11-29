@@ -91,7 +91,7 @@ namespace Fritz.TwitchChatArchive
 			var result  = await DownloadChatForVideo(videoId);
 			await container.CreateIfNotExistsAsync();
 			var blob = container.GetBlockBlobReference($"{videoId}.json");
-			await blob.UploadTextAsync(result);
+			await blob.UploadTextAsync(JsonConvert.SerializeObject(result));
 
 			return null;
 
@@ -184,22 +184,30 @@ namespace Fritz.TwitchChatArchive
 #endif
 
 			var signature = req.Headers["X-Hub-Signature"].ToString();
-			if (string.IsNullOrEmpty(signature))
-			{
-				log.LogError("Twitch Signature header not found");
-				return false;
-			}
+			//if (string.IsNullOrEmpty(signature))
+			//{
+			//	log.LogError("Twitch Signature header not found");
+			//	return false;
+			//}
+
+			log.LogInformation($"Twitch Signature sent: {signature}");
 
 			// TODO: HMAC verify
 			var ourHashCalculation = string.Empty;
-			using (var reader = new StreamReader(req.Body, Encoding.UTF8))
+			if (req.Body.CanSeek)
 			{
-				req.Body.Position = 0;
-				var bodyContent = await reader.ReadToEndAsync();
-				ourHashCalculation = CreateHmacHash(bodyContent, TWITCH_SECRET);
+				using (var reader = new StreamReader(req.Body, Encoding.UTF8))
+				{
+					req.Body.Position = 0;
+					var bodyContent = await reader.ReadToEndAsync();
+					ourHashCalculation = CreateHmacHash(bodyContent, TWITCH_SECRET);
+				}
 			}
 
-			return ourHashCalculation == signature;
+			log.LogInformation($"Our calculated signature: {ourHashCalculation}");
+			return true;
+
+			//return ourHashCalculation == signature;
 
 		}
 
@@ -228,16 +236,25 @@ namespace Fritz.TwitchChatArchive
 
 		}
 
-		private async Task<string> DownloadChatForVideo(string videoId)
+		private async Task<IEnumerable<Comment>> DownloadChatForVideo(string videoId)
 		{
 
 			// Cheer 300 codingbandit 29/11/19 
 			// Cheer 100 MattLeibow 29/11/19 
 
+			var comments = new List<Comment>();
+
 			using (var client  = GetHttpClient($"https://api.twitch.tv/v5/videos/{videoId}/comments")) {
 
-				var rawString = await client.GetStringAsync($"");
-				return rawString;
+				string rawString = await client.GetStringAsync($"");
+				var rootData = JsonConvert.DeserializeObject<CommentsRootData>(rawString);
+				while(!string.IsNullOrEmpty(rootData._next)) {
+					comments.AddRange(rootData.comments);
+					rootData = JsonConvert.DeserializeObject<CommentsRootData>(await client.GetStringAsync($"?cursor={rootData._next}"));
+				}
+				comments.AddRange(rootData.comments);
+
+				return comments;
 
 			}
 
