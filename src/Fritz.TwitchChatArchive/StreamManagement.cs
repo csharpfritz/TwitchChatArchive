@@ -13,11 +13,13 @@ using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Azure.Storage;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -52,6 +54,7 @@ namespace Fritz.TwitchChatArchive
 		[FunctionName("ReceiveEndOfStream")]
 		public async Task<HttpResponseMessage> EndOfStream(
 		[HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+		[Blob("chatlog", FileAccess.ReadWrite, Connection ="TwitchChatStorage")] CloudBlobContainer container,
 						ILogger log)
 		{
 			//We love you Fritz!
@@ -73,6 +76,8 @@ namespace Fritz.TwitchChatArchive
 				};
 			}
 
+			if (!string.IsNullOrEmpty(req.Query["userid"].ToString())) channelId = await GetChannelIdForUserName(req.Query["userid"].ToString());
+
 			if (!(await VerifyPayloadSecret(req, log))) {
 				log.LogError($"Invalid signature on request for ChannelId {channelId}");
 				return null;
@@ -83,7 +88,10 @@ namespace Fritz.TwitchChatArchive
 			var videoId = await GetLastVideoForChannel(channelId);
 			log.LogInformation($"Found last video with id: {videoId}");
 
-			// TODO: Fetch chat for video with id: videoId
+			var result  = await DownloadChatForVideo(videoId);
+			await container.CreateIfNotExistsAsync();
+			var blob = container.GetBlockBlobReference($"{videoId}.json");
+			await blob.UploadTextAsync(result);
 
 			return null;
 
@@ -109,7 +117,7 @@ namespace Fritz.TwitchChatArchive
 			};
 			logger.LogDebug($"Posting with callback url: {payload.callback}");
 			var stringPayload = JsonConvert.SerializeObject(payload);
-			logger.Log(LogLevel.Information, $"Subscribing to Twitch with payload: {stringPayload}");
+			logger.Log(Microsoft.Extensions.Logging.LogLevel.Information, $"Subscribing to Twitch with payload: {stringPayload}");
 
 			using (var client = GetHttpClient("https://api.twitch.tv/helix/webhooks/hub"))
 			{
@@ -118,7 +126,7 @@ namespace Fritz.TwitchChatArchive
 				if (!responseMessage.IsSuccessStatusCode)
 				{
 					var responseBody = await responseMessage.Content.ReadAsStringAsync();
-					logger.Log(LogLevel.Error, $"Error response body: {responseBody}");
+					logger.Log(Microsoft.Extensions.Logging.LogLevel.Error, $"Error response body: {responseBody}");
 				}
 
 
@@ -145,11 +153,18 @@ namespace Fritz.TwitchChatArchive
 
 			using (var client = GetHttpClient($"https://api.twitch.tv/helix/")) {
 
-				var msg = client.GetAsync($"videos?user_id={channelId}&first=1");
+				var msg = client.GetAsync($"videos?user_id={channelId}&first=10");
 				var body = await msg.Result.Content.ReadAsStringAsync();
 				var obj = JObject.Parse(body);
 
-				return obj["data"][0]["id"].ToString();
+				for (var i=0; i<10; i++)
+				{
+					if (obj["data"][i]["type"].ToString() == "archive") {
+						return obj["data"][i]["id"].ToString();
+					}
+				}
+
+				return string.Empty;
 
 			}
 
@@ -201,11 +216,28 @@ namespace Fritz.TwitchChatArchive
 			var client = _HttpClientFactory.CreateClient();
 			client.BaseAddress = new Uri(baseAddress);
 			client.DefaultRequestHeaders.Add("Accept", @"application/json");
+			client.DefaultRequestHeaders.Add("Accept", @"application/vnd.twitchtv.v5+json");
 			client.DefaultRequestHeaders.Add("Client-Id", _Configuration["TwitchClientID"]);
 
 			return client;
 
 		}
 
+		private async Task<string> DownloadChatForVideo(string videoId)
+		{
+
+			// Cheer 300 codingbandit 29/11/19 
+			// Cheer 100 MattLeibow 29/11/19 
+
+			using (var client  = GetHttpClient($"https://api.twitch.tv/v5/videos/{videoId}/comments")) {
+
+				var rawString = await client.GetStringAsync($"");
+				return rawString;
+
+			}
+
+		}
+
 	}
+
 }

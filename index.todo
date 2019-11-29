@@ -1,8 +1,8 @@
 ✔ Subscribe to 'Stream concluded' @done(19-11-26 12:37)
 ✔ Receive 'Stream Concluded' @done(19-11-26 12:37)
-  ☐ Trigger fetch of chat 
-  ☐ Store in Azure Blog storage
+  ✔ Trigger fetch of chat @done(19-11-29 12:28)
+  ✔ Store in Azure Blob storage @done(19-11-29 12:29)
   ☐ Extend subscription when lease is ending
-
+  ☐ Fetch next page of comments
 
 ☐ Ammend Commit with YouTube links
