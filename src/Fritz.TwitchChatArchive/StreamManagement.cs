@@ -103,7 +103,12 @@ namespace Fritz.TwitchChatArchive
 		{
 
 			var twitchEndPoint = "https://api.twitch.tv/helix/webhooks/hub"; // could end up like configuration["Twitch:HubEndpoint"]
+#if DEBUG
 			var leaseInSeconds = 0; // 864000 = 10 days
+#else
+			var leaseInSeconds = 864000; // = 10 days
+#endif
+
 			var channelId = await GetChannelIdForUserName(msg.AsString);
 			var callbackUrl = new Uri(_Configuration["EndpointBaseUrl"]);
 
