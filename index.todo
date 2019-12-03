@@ -3,6 +3,11 @@
   ✔ Trigger fetch of chat @done(19-11-29 12:28)
   ✔ Store in Azure Blob storage @done(19-11-29 12:29)
   ☐ Extend subscription when lease is ending
-  ☐ Fetch next page of comments
+    Track locally the subscriptions and set up a timer function to sync / renew
+  ☐ Verify signature match -- format is "sha256=HEX STRING"
+  ✔ Fetch next page of comments @done(19-11-29 15:07)
 
 ☐ Ammend Commit with YouTube links
+☐ Get audio transcript
+☐ Upload video to YouTube
+  ☐ Add 24hr-delay to publication

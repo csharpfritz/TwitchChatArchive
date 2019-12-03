@@ -17,6 +17,7 @@ using Microsoft.Azure.Storage;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Azure.WebJobs.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -38,28 +39,27 @@ namespace Fritz.TwitchChatArchive
 	// Thank you for redeeming!
 	//
 
-	public class StreamManagement
+	public class StreamManagement : BaseFunction
 	{
 
 		public const string TWITCH_SECRET = "DoTheTh1ng5";
-		private readonly IHttpClientFactory _HttpClientFactory;
-		private readonly IConfiguration _Configuration;
 
-		public StreamManagement(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+		public StreamManagement(IHttpClientFactory httpClientFactory, IConfiguration configuration) : base(httpClientFactory, configuration)
 		{
-			_HttpClientFactory = httpClientFactory;
-			_Configuration = configuration;
 		}
 
 		[FunctionName("ReceiveEndOfStream")]
-		public async Task<HttpResponseMessage> EndOfStream(
+		public HttpResponseMessage EndOfStream(
 		[HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
-		[Blob("chatlog", FileAccess.ReadWrite, Connection ="TwitchChatStorage")] CloudBlobContainer container,
-						ILogger log)
+						ILogger log,
+		[ServiceBus("EndOfStream", Connection = "ServiceBusConnectionString", EntityType = EntityType.Topic)]
+						out CompletedStream completedStream)
 		{
 			//We love you Fritz!
 			// If you're reading this it's too late!!
 			// parse query parameter
+
+			completedStream = CompletedStream.Empty;
 
 			var channelId = req.Query["channelId"].ToString();
 			log.LogMetric("Query", 1, new Dictionary<string, object> { { "TwitchChannelId", channelId } });
@@ -76,24 +76,22 @@ namespace Fritz.TwitchChatArchive
 				};
 			}
 
-			if (!string.IsNullOrEmpty(req.Query["userid"].ToString())) channelId = await GetChannelIdForUserName(req.Query["userid"].ToString());
+			if (!string.IsNullOrEmpty(req.Query["userid"].ToString())) channelId = GetChannelIdForUserName(req.Query["userid"].ToString()).GetAwaiter().GetResult();
 
-			if (!(await VerifyPayloadSecret(req, log))) {
+			if (!(VerifyPayloadSecret(req, log).GetAwaiter().GetResult())) {
 				log.LogError($"Invalid signature on request for ChannelId {channelId}");
 				return null;
 			} else {
 				log.LogTrace($"Valid signature for ChannelId {channelId}");
 			}
 
-			var videoId = await GetLastVideoForChannel(channelId);
+			var videoId = GetLastVideoForChannel(channelId).GetAwaiter().GetResult();
 			log.LogInformation($"Found last video with id: {videoId}");
 
-			var result  = await DownloadChatForVideo(videoId);
-			await container.CreateIfNotExistsAsync();
-			var blob = container.GetBlockBlobReference($"{videoId}.json");
-			await blob.UploadTextAsync(JsonConvert.SerializeObject(result));
+			completedStream.ChannelId = channelId;
+			completedStream.VideoId = videoId;
 
-			return null;
+			return new HttpResponseMessage(HttpStatusCode.OK);
 
 		}
 
@@ -103,14 +101,14 @@ namespace Fritz.TwitchChatArchive
 		{
 
 			var twitchEndPoint = "https://api.twitch.tv/helix/webhooks/hub"; // could end up like configuration["Twitch:HubEndpoint"]
-#if DEBUG
-			var leaseInSeconds = 0; // 864000 = 10 days
-#else
+//#if DEBUG
+//			var leaseInSeconds = 0; // 864000 = 10 days
+//#else
 			var leaseInSeconds = 864000; // = 10 days
-#endif
+//#endif
 
 			var channelId = await GetChannelIdForUserName(msg.AsString);
-			var callbackUrl = new Uri(_Configuration["EndpointBaseUrl"]);
+			var callbackUrl = new Uri(Configuration["EndpointBaseUrl"]);
 
 			var payload = new TwitchWebhookSubscriptionPayload
 			{
@@ -145,8 +143,8 @@ namespace Fritz.TwitchChatArchive
 
 			var client = GetHttpClient("https://api.twitch.tv/helix/");
 
-			var msg = client.GetAsync($"users?login={userName}");
-			var body = await msg.Result.Content.ReadAsStringAsync();
+			var body = await client.GetAsync($"users?login={userName}")
+				.ContinueWith(msg => msg.Result.Content.ReadAsStringAsync()).Result;
 			var obj = JObject.Parse(body);
 
 			return obj["data"][0]["id"].ToString();
@@ -179,9 +177,9 @@ namespace Fritz.TwitchChatArchive
 		private async Task<bool> VerifyPayloadSecret(HttpRequest req, ILogger log)
 		{
 
-#if DEBUG
-			return true;
-#endif
+//#if DEBUG
+//			return true;
+//#endif
 
 			var signature = req.Headers["X-Hub-Signature"].ToString();
 			//if (string.IsNullOrEmpty(signature))
@@ -221,42 +219,6 @@ namespace Fritz.TwitchChatArchive
 			var hmacBytes = hmac.ComputeHash(dataBytes);
 
 			return Convert.ToBase64String(hmacBytes);
-
-		}
-
-		private HttpClient GetHttpClient(string baseAddress) {
-
-			var client = _HttpClientFactory.CreateClient();
-			client.BaseAddress = new Uri(baseAddress);
-			client.DefaultRequestHeaders.Add("Accept", @"application/json");
-			client.DefaultRequestHeaders.Add("Accept", @"application/vnd.twitchtv.v5+json");
-			client.DefaultRequestHeaders.Add("Client-Id", _Configuration["TwitchClientID"]);
-
-			return client;
-
-		}
-
-		private async Task<IEnumerable<Comment>> DownloadChatForVideo(string videoId)
-		{
-
-			// Cheer 300 codingbandit 29/11/19 
-			// Cheer 100 MattLeibow 29/11/19 
-
-			var comments = new List<Comment>();
-
-			using (var client  = GetHttpClient($"https://api.twitch.tv/v5/videos/{videoId}/comments")) {
-
-				string rawString = await client.GetStringAsync($"");
-				var rootData = JsonConvert.DeserializeObject<CommentsRootData>(rawString);
-				while(!string.IsNullOrEmpty(rootData._next)) {
-					comments.AddRange(rootData.comments);
-					rootData = JsonConvert.DeserializeObject<CommentsRootData>(await client.GetStringAsync($"?cursor={rootData._next}"));
-				}
-				comments.AddRange(rootData.comments);
-
-				return comments;
-
-			}
 
 		}
 
