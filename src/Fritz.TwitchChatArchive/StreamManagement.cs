@@ -6,14 +6,17 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Fritz.TwitchChatArchive.Data;
+using Fritz.TwitchChatArchive.Messages;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Cosmos.Table;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Queue;
-using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -33,9 +36,6 @@ namespace Fritz.TwitchChatArchive
 
   public class StreamManagement : BaseFunction
   {
-
-    public const string TWITCH_SECRET = "DoTheTh1ng5";
-
     public StreamManagement(IHttpClientFactory httpClientFactory, IConfiguration configuration) : base(httpClientFactory, configuration)
     {
     }
@@ -182,93 +182,27 @@ namespace Fritz.TwitchChatArchive
 
     }
 
-    private async Task<string> GetChannelIdForUserName(string userName)
-    {
+    [FunctionName("CurrentWebhookSubscriptions")]
+    public async Task<IActionResult> GetCurrentWebhookSubscriptions(
+      [HttpTrigger(AuthorizationLevel.Function, methods: new string[] { "get" })]HttpRequest req, ILogger logger
+    ) {
 
+      var token = await GetAccessToken();
 
-      var client = GetHttpClient("https://api.twitch.tv/helix/");
+      using (var client = GetHttpClient("https://api.twitch.tv")) {
 
-      var body = await client.GetAsync($"users?login={userName}")
-        .ContinueWith(msg => msg.Result.Content.ReadAsStringAsync()).Result;
-      var obj = JObject.Parse(body);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.AccessToken}");
 
-      return obj["data"][0]["id"].ToString();
+        var result = await client.GetAsync("/helix/webhooks/subscriptions");
+        result.EnsureSuccessStatusCode();
 
-    }
+        var subs = JObject.Parse(await result.Content.ReadAsStringAsync());
 
-    private async Task<string> GetLastVideoForChannel(string channelId)
-    {
-
-      using (var client = GetHttpClient($"https://api.twitch.tv/helix/"))
-      {
-
-        var msg = client.GetAsync($"videos?user_id={channelId}&first=10");
-        var body = await msg.Result.Content.ReadAsStringAsync();
-        var obj = JObject.Parse(body);
-
-        for (var i = 0; i < 10; i++)
-        {
-          if (obj["data"][i]["type"].ToString() == "archive")
-          {
-            return obj["data"][i]["id"].ToString();
-          }
-        }
-
-        return string.Empty;
+        return new JsonResult(subs);
 
       }
 
-
     }
-
-    private async Task<bool> VerifyPayloadSecret(HttpRequest req, ILogger log)
-    {
-
-      //#if DEBUG
-      //			return true;
-      //#endif
-
-      var signature = req.Headers["X-Hub-Signature"].ToString();
-      //if (string.IsNullOrEmpty(signature))
-      //{
-      //	log.LogError("Twitch Signature header not found");
-      //	return false;
-      //}
-
-      log.LogInformation($"Twitch Signature sent: {signature}");
-
-      // TODO: HMAC verify
-      var ourHashCalculation = string.Empty;
-      if (req.Body.CanSeek)
-      {
-        using (var reader = new StreamReader(req.Body, Encoding.UTF8))
-        {
-          req.Body.Position = 0;
-          var bodyContent = await reader.ReadToEndAsync();
-          ourHashCalculation = CreateHmacHash(bodyContent, TWITCH_SECRET);
-        }
-      }
-
-      log.LogInformation($"Our calculated signature: {ourHashCalculation}");
-      return true;
-
-      //return ourHashCalculation == signature;
-
-    }
-
-    private static string CreateHmacHash(string data, string key)
-    {
-
-      var keybytes = UTF8Encoding.UTF8.GetBytes(key);
-      var dataBytes = UTF8Encoding.UTF8.GetBytes(data);
-
-      var hmac = new HMACSHA256(keybytes);
-      var hmacBytes = hmac.ComputeHash(dataBytes);
-
-      return Convert.ToBase64String(hmacBytes);
-
-    }
-
   }
 
 }

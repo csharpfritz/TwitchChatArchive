@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Fritz.TwitchChatArchive
+namespace Fritz.TwitchChatArchive.Messages
 {
 
 	[Serializable]

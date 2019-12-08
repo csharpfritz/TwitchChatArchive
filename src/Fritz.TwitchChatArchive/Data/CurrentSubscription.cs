@@ -1,26 +1,26 @@
-﻿using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Table;
+﻿using Microsoft.Azure.Cosmos.Table;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Fritz.TwitchChatArchive
+namespace Fritz.TwitchChatArchive.Data
 {
 
   public class CurrentSubscription : TableEntity
   {
 
     private string _ChannelId;
-    public string ChannelId { 
+    public string ChannelId
+    {
       get { return _ChannelId; }
-      set { 
+      set
+      {
         RowKey = value;
         _ChannelId = value;
       }
     }
 
     private DateTime _ExpirationDateTimeUtc;
-    public DateTime ExpirationDateTimeUtc { 
+    public DateTime ExpirationDateTimeUtc
+    {
       get { return _ExpirationDateTimeUtc; }
       set
       {
