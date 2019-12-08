@@ -92,7 +92,7 @@ namespace Fritz.TwitchChatArchive
 		}
 
 		[FunctionName("Subscribe")]
-		public async Task Subscribe([QueueTrigger("twitch-channel-subscription", Connection = "TwitchChatStorage")] CloudQueueMessage msg,
+		public async Task Subscribe([QueueTrigger("twitch-channel-subscription", Connection = "TwitchChatStorage")] string msg,
 																			ILogger logger)
 		{
 
@@ -103,7 +103,7 @@ namespace Fritz.TwitchChatArchive
 			var leaseInSeconds = 864000; // = 10 days
 																	 //#endif
 
-			var channelId = await GetChannelIdForUserName(msg.AsString);
+			var channelId = await GetChannelIdForUserName(msg);
 			var callbackUrl = new Uri(Configuration["EndpointBaseUrl"]);
 
 			var payload = new TwitchWebhookSubscriptionPayload
@@ -116,7 +116,7 @@ namespace Fritz.TwitchChatArchive
 			};
 			logger.LogDebug($"Posting with callback url: {payload.callback}");
 			var stringPayload = JsonConvert.SerializeObject(payload);
-			logger.Log(Microsoft.Extensions.Logging.LogLevel.Information, $"Subscribing to Twitch with payload: {stringPayload}");
+			logger.Log(LogLevel.Information, $"Subscribing to Twitch with payload: {stringPayload}");
 
 			using (var client = GetHttpClient(twitchEndPoint))
 			{
@@ -125,7 +125,7 @@ namespace Fritz.TwitchChatArchive
 				if (!responseMessage.IsSuccessStatusCode)
 				{
 					var responseBody = await responseMessage.Content.ReadAsStringAsync();
-					logger.Log(Microsoft.Extensions.Logging.LogLevel.Error, $"Error response body: {responseBody}");
+					logger.Log(LogLevel.Error, $"Error response body: {responseBody}");
 				}
 				else
 				{
