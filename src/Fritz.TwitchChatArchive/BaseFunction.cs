@@ -28,7 +28,9 @@ namespace Fritz.TwitchChatArchive
 
 		protected IConfiguration Configuration { get; }
 
-		protected HttpClient GetHttpClient(string baseAddress)
+    public string TwitchClientID { get { return Configuration["TwitchClientID"]; }
+
+    protected HttpClient GetHttpClient(string baseAddress)
 		{
 
 			var client = HttpClientFactory.CreateClient();
