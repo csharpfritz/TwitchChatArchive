@@ -72,7 +72,8 @@ namespace Fritz.TwitchChatArchive
 			//var account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("AzureWebJobsStorage"));
 			//var client = account.CreateCloudQueueClient();
 			//var queue = client.GetQueueReference(QUEUE_ChunkList);
-			//var chunklistCount = chunkList.Count();
+
+			var chunklistCount = chunkList.Count();
 			Parallel.ForEach(chunkList, c =>
 			{
 				outQueue.AddMessageAsync(new CloudQueueMessage(baseUrl + c + " || " + queueItem + "-" + c + " || " + chunklistCount));
