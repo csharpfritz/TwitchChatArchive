@@ -4,6 +4,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -12,6 +13,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -48,7 +50,7 @@ namespace Fritz.TwitchChatArchive
 
 			[FunctionName("DownloadVideo")]
 			public static async Task GetVideo(
-				[QueueTrigger(QUEUE_DownloadVideoLink, Connection = "AzureWebJobsStorage")] string queueItem,
+				[QueueTrigger(QUEUE_DownloadVideoLink, Connection = "TwitchChatStorage")] string queueItem,
 				ILogger log)
 			{
 
@@ -77,14 +79,14 @@ namespace Fritz.TwitchChatArchive
 
 			[FunctionName("DownloadVideoChunk")]
 			public static async Task DownloadVideoChunk(
-				[QueueTrigger(QUEUE_ChunkList, Connection = "AzureWebJobsStorage")] string chunkUrlItem,
+				[QueueTrigger(QUEUE_ChunkList, Connection = "TwitchChatStorage")] string chunkUrlItem,
 				ILogger log)
 			{
 
 				var clientId = Environment.GetEnvironmentVariable("TwitchClientId"); //CloudConfigurationManager.GetSetting("TwitchClientId");
 				var parts = chunkUrlItem.Split(" || ");
 
-				var account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("AzureWebJobsStorage"));
+				var account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("TwitchChatStorage"));
 				var blobClient = account.CreateCloudBlobClient();
 				var container = blobClient.GetContainerReference(BLOB_DownloadChunks);
 				var blob = container.GetBlockBlobReference(parts[1]);
@@ -152,7 +154,7 @@ namespace Fritz.TwitchChatArchive
 
 				var baseFileName = filename.Split('-')[0];
 
-				var account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("AzureWebJobsStorage"));
+				var account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("TwitchChatStorage"));
 				var blobClient = account.CreateCloudBlobClient();
 				var container = blobClient.GetContainerReference(BLOB_DownloadChunks);
 
