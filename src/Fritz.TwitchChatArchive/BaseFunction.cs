@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -17,8 +18,10 @@ namespace Fritz.TwitchChatArchive
 	public abstract class BaseFunction {
 
     public const string TWITCH_SECRET = "DoTheTh1ng5";
+    protected const string TWITCH_CLIENTID_WEB = "kimne78kx3ncx6brgo4mv6wki5h1ko";
 
-		protected BaseFunction(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+
+    protected BaseFunction(IHttpClientFactory httpClientFactory, IConfiguration configuration)
 		{
 			HttpClientFactory = httpClientFactory;
 			Configuration = configuration;
@@ -30,14 +33,24 @@ namespace Fritz.TwitchChatArchive
 
     public string TwitchClientID { get { return Configuration["TwitchClientID"]; } }
 
-    protected HttpClient GetHttpClient(string baseAddress)
+    protected HttpClient GetPublicHttpClient(string baseAddress) {
+      return GetHttpClient(baseAddress, TWITCH_CLIENTID_WEB, false);
+    }
+
+    protected HttpClient GetHttpClient(string baseAddress, string clientId = "", bool includeJson = true)
 		{
+
+      if (clientId == "") clientId = TwitchClientID;
 
 			var client = HttpClientFactory.CreateClient();
 			client.BaseAddress = new Uri(baseAddress);
-			client.DefaultRequestHeaders.Add("Accept", @"application/json");
+
+      if (includeJson)
+      {
+        client.DefaultRequestHeaders.Add("Accept", @"application/json");
+      }
 			client.DefaultRequestHeaders.Add("Accept", @"application/vnd.twitchtv.v5+json");
-			client.DefaultRequestHeaders.Add("Client-Id", Configuration["TwitchClientID"]);
+			client.DefaultRequestHeaders.Add("Client-ID", clientId);
 
 			return client;
 
@@ -49,11 +62,38 @@ namespace Fritz.TwitchChatArchive
 
       var client = GetHttpClient("https://api.twitch.tv/helix/");
 
-      var body = await client.GetAsync($"users?login={userName}")
+      string body = string.Empty;
+      try
+      {
+        body = await client.GetAsync($"users?login={userName}")
+          .ContinueWith(msg => msg.Result.Content.ReadAsStringAsync()).Result;
+      } catch {
+
+        // Were we actually passed a channel id?
+
+        if (await GetUserNameForChannelId(userName) != string.Empty)
+          return userName;
+        else
+          return string.Empty;
+
+      }
+
+      var obj = JObject.Parse(body);
+      return obj["data"][0]["id"].ToString();
+
+    }
+
+    protected async Task<string> GetUserNameForChannelId(string channelId)
+    {
+
+
+      var client = GetHttpClient("https://api.twitch.tv/helix/");
+
+      var body = await client.GetAsync($"users?id={channelId}")
         .ContinueWith(msg => msg.Result.Content.ReadAsStringAsync()).Result;
       var obj = JObject.Parse(body);
 
-      return obj["data"][0]["id"].ToString();
+      return obj["data"][0]["login"].ToString();
 
     }
 
@@ -76,6 +116,36 @@ namespace Fritz.TwitchChatArchive
         }
 
         return string.Empty;
+
+      }
+
+
+    }
+
+    protected async Task<IEnumerable<string>> GetVideosForChannelSince(string channelId, DateTime since)
+    {
+
+      using (var client = GetHttpClient($"https://api.twitch.tv/helix/"))
+      {
+
+        var msg = client.GetAsync($"videos?user_id={channelId}&first=20");
+        var body = await msg.Result.Content.ReadAsStringAsync();
+        var obj = JObject.Parse(body);
+
+        var outList = new List<string>();
+
+        for (var i = 0; i < 20; i++)
+        {
+          if (obj["data"][i]["type"].ToString() == "archive")
+          {
+
+            var createdAt = DateTime.Parse(obj["data"][i]["created_at"].ToString());
+            if (createdAt > since) outList.Add(obj["data"][i]["id"].ToString());
+              
+          }
+        }
+
+        return outList;
 
       }
 

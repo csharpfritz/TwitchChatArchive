@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Fritz.TwitchChatArchive.Data;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
@@ -59,11 +60,13 @@ namespace Fritz.TwitchChatArchive
 		[FunctionName("DownloadVideo")]
 		public async Task GetVideo(
 			[QueueTrigger(QUEUE_DownloadVideoLink, Connection = "TwitchChatStorage")] string queueItem,
-			[Queue(QUEUE_ChunkList, Connection ="TwitchChatStorage")] CloudQueue outQueue,
+			[Queue(QUEUE_ChunkList, Connection = "TwitchChatStorage")] CloudQueue outQueue,
 			ILogger log)
 		{
 
 			(string sig, string token) = await GetTokenFromTwitchForVideo(queueItem);
+
+			var videoDetails = await GetVideoDetails(queueItem);
 
 			var qualityUrl = await GetQualityUrl(queueItem, sig, token);
 			var chunkList = await GetChunks(qualityUrl);
@@ -119,8 +122,8 @@ namespace Fritz.TwitchChatArchive
 		[FunctionName("AssembleVideoChunks")]
 		public async Task AssembleVideoChunks(
 		[QueueTrigger(QUEUE_AssembleChunks, Connection = "TwitchChatStorage")] string fileNameCount,
-		[Blob(BLOB_DownloadChunks, Connection ="TwitchChatStorage")] CloudBlobContainer chunkContainer,
-		[Blob(BLOB_TwitchArchive, Connection ="TwitchChatStorage")] CloudBlobContainer saveContainer,
+		[Blob(BLOB_DownloadChunks, Connection = "TwitchChatStorage")] CloudBlobContainer chunkContainer,
+		[Blob(BLOB_TwitchArchive, Connection = "TwitchChatStorage")] CloudBlobContainer saveContainer,
 		ILogger log)
 		{
 
@@ -222,12 +225,12 @@ namespace Fritz.TwitchChatArchive
 		private async Task<(string sig, string token)> GetTokenFromTwitchForVideo(string queueItem)
 		{
 
-			using (var client = base.GetHttpClient("https://api.twitch.tv"))
+			using (var client = base.GetPublicHttpClient($"https://api.twitch.tv/api/channels/csharpfritz/access_token.json?client_id={TWITCH_CLIENTID_WEB}"))
 			{
 
-				client.DefaultRequestHeaders.Add("Accept", "application/vnd.twitchtv.v3+json");
+				client.DefaultRequestHeaders.Clear();
 
-				var message = await client.GetAsync($"/api/vods/{queueItem}/access_token?as3=t");
+				var message = await client.GetAsync("");
 				message.EnsureSuccessStatusCode();
 
 				var returnVal = JObject.Parse(await message.Content.ReadAsStringAsync());
@@ -259,6 +262,22 @@ namespace Fritz.TwitchChatArchive
 			container = blobClient.GetContainerReference(BLOB_TwitchArchive);
 			await container.CreateIfNotExistsAsync();
 
+
+		}
+
+		private async Task<TwitchVideo> GetVideoDetails(string videoId)
+		{
+
+			using (var client = GetPublicHttpClient($"https://api.twitch.tv/kraken/videos/{videoId}")) {
+
+				var result = await client.GetAsync("");
+				result.EnsureSuccessStatusCode();
+
+				var outString = await result.Content.ReadAsStringAsync();
+
+				return JsonConvert.DeserializeObject<TwitchVideo>(outString);
+
+			}
 
 		}
 

@@ -19,6 +19,8 @@ using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.ServiceBus;
+using Message = Microsoft.Azure.ServiceBus.Message;
 
 namespace Fritz.TwitchChatArchive
 {
@@ -84,6 +86,7 @@ namespace Fritz.TwitchChatArchive
 			var videoId = GetLastVideoForChannel(channelId).GetAwaiter().GetResult();
 			log.LogInformation($"Found last video with id: {videoId}");
 
+			completedStream.ChannelName = base.GetUserNameForChannelId(channelId).GetAwaiter().GetResult();
 			completedStream.ChannelId = channelId;
 			completedStream.VideoId = videoId;
 
@@ -133,6 +136,7 @@ namespace Fritz.TwitchChatArchive
 					var sub = new CurrentSubscription
 					{
 						ChannelId = channelId,
+						ChannelName = msg,
 						ExpirationDateTimeUtc = DateTime.UtcNow.AddSeconds(leaseInSeconds).AddDays(-1)
 					};
 					var repo = new CurrentSubscriptionsRepository(Configuration);
@@ -156,13 +160,88 @@ namespace Fritz.TwitchChatArchive
 			var currentSubscriptions = await repo.GetExpiringSubscriptions();
 			foreach (var item in currentSubscriptions)
 			{
-				await queue.AddMessageAsync(new CloudQueueMessage(item.ChannelId));
+				await queue.AddMessageAsync(new CloudQueueMessage(item.ChannelName));
 				await repo.RemoveSubscription(item);
 			}
 
 	}
 
-	[FunctionName("CurrentWebhookSubscriptions")]
+		[FunctionName("GetVideosSince")]
+		public HttpResponseMessage ReviewVideosSince([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+							ILogger log,
+							[ServiceBus("EndOfStream", Connection = "ServiceBusConnectionString", EntityType = EntityType.Topic)]IAsyncCollector<CompletedStream> outputSbQueue)
+		{
+
+			var channelId = req.Query["channelId"].ToString();
+			log.LogMetric("Query", 1, new Dictionary<string, object> { { "TwitchChannelId", channelId } });
+			log.LogInformation($"ChannelId: {channelId}");
+
+			if (!string.IsNullOrEmpty(req.Query["userid"].ToString())) channelId = GetChannelIdForUserName(req.Query["userid"].ToString()).GetAwaiter().GetResult();
+
+			var videos = GetVideosForChannelSince(channelId, new DateTime(2019, 12, 27)).GetAwaiter().GetResult();
+			//log.LogInformation($"Found last video with id: {videoId}");
+
+			var channelName = base.GetUserNameForChannelId(channelId).GetAwaiter().GetResult();
+
+			foreach (var item in videos)
+			{
+
+				var msg = new CompletedStream
+				{
+					ChannelId = channelId,
+					ChannelName = channelName,
+					VideoId = item
+				};
+
+				outputSbQueue.AddAsync(msg).GetAwaiter().GetResult();
+
+				//var message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(msg)))
+				//{
+				//	ContentType = "application/json",
+				//	TimeToLive = TimeSpan.FromMinutes(1)
+				//};
+				//topicClient.SendAsync(message);
+
+			}
+
+
+			return new HttpResponseMessage(HttpStatusCode.OK);
+
+
+		}
+
+		[FunctionName("GetVideo")]
+		public HttpResponseMessage ReviewVideo([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+							ILogger log,
+							[ServiceBus("EndOfStream", Connection = "ServiceBusConnectionString", EntityType = EntityType.Topic)]IAsyncCollector<CompletedStream> outputSbQueue)
+		{
+
+			var channelId = req.Query["channelId"].ToString();
+			log.LogMetric("Query", 1, new Dictionary<string, object> { { "TwitchChannelId", channelId } });
+			log.LogInformation($"ChannelId: {channelId}");
+
+			string videoId = string.Empty;
+			if (!string.IsNullOrEmpty(req.Query["userid"].ToString())) channelId = GetChannelIdForUserName(req.Query["userid"].ToString()).GetAwaiter().GetResult();
+			if (!string.IsNullOrEmpty(req.Query["videoid"].ToString())) videoId = req.Query["videoid"].ToString();
+
+			var channelName = base.GetUserNameForChannelId(channelId).GetAwaiter().GetResult();
+
+			var msg = new CompletedStream
+			{
+				ChannelId = channelId,
+				ChannelName = channelName,
+				VideoId = videoId
+			};
+
+			outputSbQueue.AddAsync(msg).GetAwaiter().GetResult();
+
+
+			return new HttpResponseMessage(HttpStatusCode.OK);
+
+
+		}
+
+		[FunctionName("CurrentWebhookSubscriptions")]
 	public async Task<IActionResult> GetCurrentWebhookSubscriptions(
 		[HttpTrigger(AuthorizationLevel.Function, methods: new string[] { "get" })]HttpRequest req, ILogger logger
 	)

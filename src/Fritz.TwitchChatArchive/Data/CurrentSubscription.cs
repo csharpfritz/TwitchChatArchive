@@ -17,6 +17,7 @@ namespace Fritz.TwitchChatArchive.Data
         _ChannelId = value;
       }
     }
+    public string ChannelName { get; set; }
 
     private DateTime _ExpirationDateTimeUtc;
     public DateTime ExpirationDateTimeUtc

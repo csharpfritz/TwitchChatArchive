@@ -11,6 +11,8 @@ namespace Fritz.TwitchChatArchive.Messages
 
 		public string ChannelId { get; set; }
 
+		public string ChannelName { get; set; }
+
 		public string VideoId { get; set; }
 
 		[NonSerialized]

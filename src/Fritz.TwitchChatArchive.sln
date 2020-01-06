@@ -5,6 +5,12 @@ VisualStudioVersion = 16.0.29512.175
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fritz.TwitchChatArchive", "Fritz.TwitchChatArchive\Fritz.TwitchChatArchive.csproj", "{6895ABC2-BCCC-4963-928A-570D6CAC6D3B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SampleJsonContent", "SampleJsonContent", "{3E0DBA75-5FF4-4E38-8B91-F62D85F8264A}"
+	ProjectSection(SolutionItems) = preProject
+		..\SampleChatLog.json = ..\SampleChatLog.json
+		..\SampleVideoOutout.json = ..\SampleVideoOutout.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

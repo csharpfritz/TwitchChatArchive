@@ -1,0 +1,146 @@
+{
+	"title": "Open Source C#, Azure Functions, Cloud Storage, Blazor and Sub Trains!",
+	"description": null,
+	"description_html": null,
+	"broadcast_id": 36376243056,
+	"broadcast_type": "archive",
+	"status": "recorded",
+	"tag_list": "",
+	"views": 20,
+	"url": "https://www.twitch.tv/videos/518790713",
+	"language": "en",
+	"created_at": "2019-12-08T15:04:47Z",
+	"viewable": "public",
+	"viewable_at": null,
+	"published_at": "2019-12-08T15:04:47Z",
+	"delete_at": "2020-02-06T15:04:47Z",
+	"_id": "v518790713",
+	"recorded_at": "2019-12-08T15:04:47Z",
+	"game": "Science \u0026 Technology",
+	"length": 7544,
+	"preview": {
+		"small": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb0-80x45.jpg",
+		"medium": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb0-320x180.jpg",
+		"large": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb0-640x360.jpg",
+		"template": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb0-{width}x{height}.jpg"
+	},
+	"animated_preview_url": "https://vod-storyboards.twitch.tv/2077447b5215061a842f_csharpfritz_36376243056_1342227374/storyboards/518790713-strip-0.jpg",
+	"thumbnails": {
+		"small": [
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb0-80x45.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb1-80x45.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb2-80x45.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb3-80x45.jpg"
+			}
+		],
+		"medium": [
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb0-320x180.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb1-320x180.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb2-320x180.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb3-320x180.jpg"
+			}
+		],
+		"large": [
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb0-640x360.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb1-640x360.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb2-640x360.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb3-640x360.jpg"
+			}
+		],
+		"template": [
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb0-{width}x{height}.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb1-{width}x{height}.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb2-{width}x{height}.jpg"
+			},
+			{
+				"type": "generated",
+				"url": "https://static-cdn.jtvnw.net/s3_vods/2077447b5215061a842f_csharpfritz_36376243056_1342227374/thumb/thumb3-{width}x{height}.jpg"
+			}
+		]
+	},
+	"fps": {
+		"160p30": 29.996160319707393,
+		"360p30": 29.996160319707393,
+		"480p30": 29.996160319707393,
+		"720p30": 29.996160319707393,
+		"720p60": 59.99218809953586,
+		"chunked": 59.99218809953586
+	},
+	"seek_previews_url": "https://vod-storyboards.twitch.tv/2077447b5215061a842f_csharpfritz_36376243056_1342227374/storyboards/518790713-info.json",
+	"resolutions": {
+		"160p30": "284x160",
+		"360p30": "640x360",
+		"480p30": "852x480",
+		"720p30": "1280x720",
+		"720p60": "1280x720",
+		"chunked": "1920x1080"
+	},
+	"restriction": "",
+	"channel": {
+		"mature": false,
+		"status": "Open Source C#, Azure Functions, Cloud Storage, Blazor and Sub Trains!",
+		"broadcaster_language": "en",
+		"broadcaster_software": "unknown_rtmp",
+		"display_name": "csharpfritz",
+		"game": "Science \u0026 Technology",
+		"language": "en",
+		"_id": 96909659,
+		"name": "csharpfritz",
+		"created_at": "2015-07-22T21:55:05.767207Z",
+		"updated_at": "2019-12-09T17:00:09.494892Z",
+		"partner": true,
+		"logo": "https://static-cdn.jtvnw.net/jtv_user_pictures/bc227e27-bbbb-466f-841b-ac0626c42314-profile_image-300x300.png",
+		"video_banner": "https://static-cdn.jtvnw.net/jtv_user_pictures/06295866-5ae9-4558-aaf2-78d486b6361c-channel_offline_image-1920x1080.jpeg",
+		"profile_banner": "https://static-cdn.jtvnw.net/jtv_user_pictures/3801cdcc-6b66-410c-884f-40fab74154b3-profile_banner-480.png",
+		"profile_banner_background_color": "",
+		"url": "https://www.twitch.tv/csharpfritz",
+		"views": 152599,
+		"followers": 9046,
+		"broadcaster_type": "partner",
+		"description": "I write code on video and teach as I build fun applications.  I also work on the .NET and Visual Studio groups at Microsoft",
+		"private_video": false,
+		"privacy_options_enabled": false
+	},
+	"increment_view_count_url": "https://countess.twitch.tv/ping.gif?u=%7B%22id%22%3A%22518790713%22%2C%22type%22%3A%22vod%22%7D"
+}
