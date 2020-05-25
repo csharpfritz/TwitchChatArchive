@@ -93,7 +93,7 @@ namespace Fritz.TwitchChatArchive
 
     [FunctionName("Subscribe")]
     public async Task Subscribe([QueueTrigger("twitch-channel-subscription", Connection = "TwitchChatStorage")] CloudQueueMessage msg,
-        [Table("CurrenySubscriptions", Connection = "TwitchChatStorage")]CloudTable cloudTable,
+        [Table("CurrentSubscriptions", Connection = "TwitchChatStorage")]CloudTable cloudTable,
                                       ILogger logger)
     {
 
@@ -147,7 +147,7 @@ namespace Fritz.TwitchChatArchive
 
     [FunctionName("ScheduledResubscribe")]
     public async Task ScheduledResubscribe([TimerTrigger("0 2 */2 * * *", RunOnStartup = true)]TimerInfo timer,
-      [Table("CurrenySubscriptions", Connection = "TwitchChatStorage")]CloudTable cloudTable,
+      [Table("CurrentSubscriptions", Connection = "TwitchChatStorage")]CloudTable cloudTable,
       [Queue("twitch-channel-subscription", Connection = "TwitchChatStorage")] CloudQueue queue,
       ILogger logger)
     {

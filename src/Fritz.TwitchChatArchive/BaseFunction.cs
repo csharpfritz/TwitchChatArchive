@@ -23,6 +23,7 @@ namespace Fritz.TwitchChatArchive
 			client.DefaultRequestHeaders.Add("Accept", @"application/json");
 			client.DefaultRequestHeaders.Add("Accept", @"application/vnd.twitchtv.v5+json");
 			client.DefaultRequestHeaders.Add("Client-Id", Configuration["TwitchClientID"]);
+			client.DefaultRequestHeaders.Add("Authorization", $"Bearer {Configuration["TwitchClientSecret"]}");
 
 			return client;
 
