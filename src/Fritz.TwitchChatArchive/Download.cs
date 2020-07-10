@@ -9,6 +9,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
 
 namespace Fritz.TwitchChatArchive
@@ -34,10 +35,26 @@ namespace Fritz.TwitchChatArchive
 
 			var downloadTask = DownloadChatForVideo(completedStream.VideoId);
 			Task.WaitAll(downloadTask, container.CreateIfNotExistsAsync());
-			var blob = container.GetBlockBlobReference($"{completedStream.VideoId}.json");
+			var blob = container.GetBlockBlobReference($"{completedStream.ChannelName}_{completedStream.VideoId}.json");
 			await blob.UploadTextAsync(JsonConvert.SerializeObject(downloadTask.Result));
 
 			log.LogInformation($"C# ServiceBus topic trigger function processed message: {completedStream}");
+
+		}
+
+		[FunctionName("DownloadChatByVideoId")]
+		public async Task DownloadChatById(
+		[QueueTrigger("chattodownload-byvideoid", Connection = "TwitchChatStorage")] CloudQueueMessage msg,
+		[Blob("chatlog", FileAccess.ReadWrite, Connection = "TwitchChatStorage")] CloudBlobContainer container,
+			ILogger log)
+		{
+
+			var downloadTask = DownloadChatForVideo(msg.AsString);
+			Task.WaitAll(downloadTask, container.CreateIfNotExistsAsync());
+			var blob = container.GetBlockBlobReference($"{msg.AsString}.json");
+			await blob.UploadTextAsync(JsonConvert.SerializeObject(downloadTask.Result));
+
+			log.LogInformation($"Downloaded chat for video with id: {msg.AsString}");
 
 		}
 
