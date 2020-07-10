@@ -106,7 +106,7 @@ namespace Fritz.TwitchChatArchive
 			var leaseInSeconds = 864000; // = 10 days
 																	 //#endif
 
-			var channelId = await GetChannelIdForUserName(msg);
+			var channelId = long.TryParse(msg, out var _) ? msg : await GetChannelIdForUserName(msg);
 			var callbackUrl = new Uri(Configuration["EndpointBaseUrl"]);
 
 			var payload = new TwitchWebhookSubscriptionPayload

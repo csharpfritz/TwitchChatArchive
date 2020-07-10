@@ -61,12 +61,17 @@ namespace Fritz.TwitchChatArchive
 
 
       var client = GetHttpClient("https://api.twitch.tv/helix/");
+      var token = await GetAccessToken();
+      client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.AccessToken}");
 
       string body = string.Empty;
       try
       {
-        body = await client.GetAsync($"users?login={userName}")
-          .ContinueWith(msg => msg.Result.Content.ReadAsStringAsync()).Result;
+        var msg = await client.GetAsync($"users?login={userName}");
+        msg.EnsureSuccessStatusCode();
+        body = await msg.Content.ReadAsStringAsync();
+      } catch (HttpRequestException e) {
+        throw;
       } catch {
 
         // Were we actually passed a channel id?
@@ -88,6 +93,8 @@ namespace Fritz.TwitchChatArchive
 
 
       var client = GetHttpClient("https://api.twitch.tv/helix/");
+      var token = await GetAccessToken();
+      client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.AccessToken}");
 
       var body = await client.GetAsync($"users?id={channelId}")
         .ContinueWith(msg => msg.Result.Content.ReadAsStringAsync()).Result;
