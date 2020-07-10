@@ -124,6 +124,9 @@ namespace Fritz.TwitchChatArchive
 			using (var client = GetHttpClient(twitchEndPoint))
 			{
 
+				var token = await GetAccessToken();
+				client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.AccessToken}");
+
 				var responseMessage = await client.PostAsync("", new StringContent(stringPayload, Encoding.UTF8, @"application/json"));
 				if (!responseMessage.IsSuccessStatusCode)
 				{
