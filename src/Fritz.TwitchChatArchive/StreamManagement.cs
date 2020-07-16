@@ -71,7 +71,7 @@ namespace Fritz.TwitchChatArchive
 				};
 			}
 
-			if (!string.IsNullOrEmpty(req.Query["userid"].ToString())) channelId = GetChannelIdForUserName(req.Query["userid"].ToString()).GetAwaiter().GetResult();
+			//if (!string.IsNullOrEmpty(req.Query["userid"].ToString())) channelId = GetChannelIdForUserName(req.Query["userid"].ToString()).GetAwaiter().GetResult();
 
 			if (!(VerifyPayloadSecret(req, log).GetAwaiter().GetResult()))
 			{
@@ -101,8 +101,6 @@ namespace Fritz.TwitchChatArchive
 
 			var twitchEndPoint = "https://api.twitch.tv/helix/webhooks/hub"; // could end up like configuration["Twitch:HubEndpoint"]
 																																			 //#if DEBUG
-																																			 //			var leaseInSeconds = 0; // 864000 = 10 days
-																																			 //#else
 			var leaseInSeconds = 864000; // = 10 days
 																	 //#endif
 
@@ -245,28 +243,38 @@ namespace Fritz.TwitchChatArchive
 		}
 
 		[FunctionName("CurrentWebhookSubscriptions")]
-	public async Task<IActionResult> GetCurrentWebhookSubscriptions(
-		[HttpTrigger(AuthorizationLevel.Function, methods: new string[] { "get" })]HttpRequest req, ILogger logger
+		public async Task<IActionResult> GetCurrentWebhookSubscriptions(
+		[HttpTrigger(AuthorizationLevel.Function, methods: new string[] { "get" })] HttpRequest req, ILogger logger
 	)
-	{
-
-		var token = await GetAccessToken();
-
-		using (var client = GetHttpClient("https://api.twitch.tv"))
 		{
 
-			client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.AccessToken}");
+			var token = await GetAccessToken();
 
-			var result = await client.GetAsync("/helix/webhooks/subscriptions");
-			result.EnsureSuccessStatusCode();
+			using (var client = GetHttpClient("https://api.twitch.tv"))
+			{
 
-			var subs = JObject.Parse(await result.Content.ReadAsStringAsync());
+				client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.AccessToken}");
 
-			return new JsonResult(subs);
+				var result = await client.GetAsync("/helix/webhooks/subscriptions");
+				result.EnsureSuccessStatusCode();
+
+				var subs = JObject.Parse(await result.Content.ReadAsStringAsync());
+
+				return new JsonResult(subs);
+
+			}
 
 		}
 
+		//[FunctionName("Test")]
+		//public async Task<IActionResult> Test(
+		//	[HttpTrigger(AuthorizationLevel.Anonymous, methods: new string[] { "get" })] HttpRequest req, ILogger logger)
+		//{
+
+		//	return new JsonResult(await GetLastVideoForChannel("96909659"));
+
+		//}
+
 	}
-}
 
 }

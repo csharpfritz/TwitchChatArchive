@@ -110,7 +110,10 @@ namespace Fritz.TwitchChatArchive
       using (var client = GetHttpClient($"https://api.twitch.tv/helix/"))
       {
 
-        var msg = client.GetAsync($"videos?user_id={channelId}&first=10");
+        var token = await GetAccessToken();
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.AccessToken}");
+
+        var msg = client.GetAsync($"videos?user_id={channelId}&first=10&type=archive");
         var body = await msg.Result.Content.ReadAsStringAsync();
         var obj = JObject.Parse(body);
 
