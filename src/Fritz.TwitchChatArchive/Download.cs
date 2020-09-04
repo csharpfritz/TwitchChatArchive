@@ -49,13 +49,30 @@ namespace Fritz.TwitchChatArchive
 			ILogger log)
 		{
 
-			var downloadTask = DownloadChatForVideo(msg.AsString);
-			Task.WaitAll(downloadTask, container.CreateIfNotExistsAsync());
-			var blob = container.GetBlockBlobReference($"{msg.AsString}.json");
+			var videoId = msg.AsString.Trim();
+
+			var downloadTask = DownloadChatForVideo(videoId);
+			var getTitleAndDateTask = GetTitleForVideo(videoId);
+			Task.WaitAll(downloadTask, getTitleAndDateTask, container.CreateIfNotExistsAsync());
+
+			var titleAndDate = getTitleAndDateTask.Result;
+			var blob = container.GetBlockBlobReference($"{titleAndDate.publishDate.ToString("yyyyMMdd")}_{titleAndDate.title}.json");
 			await blob.UploadTextAsync(JsonConvert.SerializeObject(downloadTask.Result));
 
 			log.LogInformation($"Downloaded chat for video with id: {msg.AsString}");
 
+		}
+
+		private async Task<(string title, DateTime publishDate)> GetTitleForVideo(string videoId)
+		{
+			using (var client = GetHttpClient($"https://api.twitch.tv/kraken/videos/{videoId}"))
+			{
+
+				string rawString = await client.GetStringAsync($"");
+				var rootData = JsonConvert.DeserializeObject<VideoDetail>(rawString);
+				return (rootData.title, rootData.published_at);
+
+			}
 		}
 
 		private async Task<IEnumerable<Comment>> DownloadChatForVideo(string videoId)
