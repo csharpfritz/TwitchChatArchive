@@ -21,6 +21,7 @@ using Newtonsoft.Json.Linq;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.ServiceBus;
 using Message = Microsoft.Azure.ServiceBus.Message;
+using System.Web.Http;
 
 namespace Fritz.TwitchChatArchive
 {
@@ -267,13 +268,69 @@ namespace Fritz.TwitchChatArchive
 		}
 
 		//[FunctionName("Test")]
-		//public async Task<IActionResult> Test(
-		//	[HttpTrigger(AuthorizationLevel.Anonymous, methods: new string[] { "get" })] HttpRequest req, ILogger logger)
+		//public Task<IActionResult> Test(
+		//	[HttpTrigger(AuthorizationLevel.Anonymous, methods: new string[] { "get" })] HttpRequest req,
+		//	ILogger logger,
+		//	[ServiceBus("EndOfStream", Connection = "ServiceBusConnectionString", EntityType = EntityType.Topic)]
+		//				out CompletedStream completedStream)
 		//{
 
-		//	return new JsonResult(await GetLastVideoForChannel("96909659"));
+		//	completedStream = new CompletedStream
+		//	{
+		//		ChannelId = "123391659",
+		//		ChannelName = "visualstudio",
+		//		VideoId = "688652328"
+		//	};
+
+		//	return Task.FromResult<IActionResult>(new JsonResult("OK"));
 
 		//}
+
+		[FunctionName("unsubscribe")]
+		public async Task<IActionResult> Unsubscribe(
+			[HttpTrigger(AuthorizationLevel.Anonymous, methods: new string[] { "get" })] HttpRequest req,
+			ILogger logger)
+		{
+
+			var twitchEndPoint = "https://api.twitch.tv/helix/webhooks/hub"; // could end up like configuration["Twitch:HubEndpoint"]
+																																			 //#if DEBUG
+			var leaseInSeconds = 864000; // = 10 days
+																	 //#endif
+			var msg = req.Query["channel"].ToString();
+			var channelId = long.TryParse(msg, out var _) ? msg : await GetChannelIdForUserName(msg);
+			var callbackUrl = new Uri(Configuration["EndpointBaseUrl"]);
+
+			var payload = new TwitchWebhookSubscriptionPayload
+			{
+				callback = new Uri(callbackUrl, $"?channelId={channelId}").ToString(),
+				mode = "unsubscribe",
+				topic = $"https://api.twitch.tv/helix/streams?user_id={channelId}",
+				lease_seconds = leaseInSeconds,
+				secret = TWITCH_SECRET
+			};
+			logger.LogDebug($"Posting with callback url: {payload.callback}");
+			var stringPayload = JsonConvert.SerializeObject(payload);
+			logger.Log(LogLevel.Information, $"Subscribing to Twitch with payload: {stringPayload}");
+
+			using (var client = GetHttpClient(twitchEndPoint))
+			{
+
+				var token = await GetAccessToken();
+				client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.AccessToken}");
+
+				var responseMessage = await client.PostAsync("", new StringContent(stringPayload, Encoding.UTF8, @"application/json"));
+				if (!responseMessage.IsSuccessStatusCode)
+				{
+					var responseBody = await responseMessage.Content.ReadAsStringAsync();
+					logger.Log(LogLevel.Error, $"Error response body: {responseBody}");
+					return new BadRequestErrorMessageResult(responseBody);
+				}
+
+				return new OkResult();
+
+			}
+
+		}
 
 	}
 

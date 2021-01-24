@@ -26,17 +26,30 @@ namespace Fritz.TwitchChatArchive
 
 		[FunctionName("DownloadChat")]
 		public async Task DownloadChat(
-		[ServiceBusTrigger("EndOfStream", "downloadchat", Connection = "ServiceBusConnectionString")]CompletedStream completedStream,
+		[ServiceBusTrigger("EndOfStream", "downloadchat", Connection = "ServiceBusConnectionString")] CompletedStream completedStream,
 		[Blob("chatlog", FileAccess.ReadWrite, Connection = "TwitchChatStorage")] CloudBlobContainer container,
 			ILogger log)
 		{
 
-			if (string.IsNullOrEmpty(completedStream.VideoId)) return;
+			if (string.IsNullOrEmpty(completedStream.VideoId))
+			{
+				log.LogError($"Unable to downloadchat - no VideoId submitted for {completedStream.ChannelName}");
+				return;
+			}
+
+			log.LogInformation($"Attempting to download chat for {completedStream.ChannelName} - VideoId: {completedStream.VideoId}");
 
 			var downloadTask = DownloadChatForVideo(completedStream.VideoId);
-			Task.WaitAll(downloadTask, container.CreateIfNotExistsAsync());
-			var blob = container.GetBlockBlobReference($"{completedStream.ChannelName}_{completedStream.VideoId}.json");
+			var getTitleAndDateTask = GetTitleForVideo(completedStream.VideoId);
+			Task.WaitAll(downloadTask, getTitleAndDateTask, container.CreateIfNotExistsAsync());
+
+			var titleAndDate = getTitleAndDateTask.Result;
+			var fileName = $"{titleAndDate.publishDate.ToString("yyyyMMdd")}_{titleAndDate.title}.json";
+			var blob = container.GetBlockBlobReference(fileName);
 			await blob.UploadTextAsync(JsonConvert.SerializeObject(downloadTask.Result));
+
+			var client = GetHttpClient($"https://lemon-bush-027f2e90f.azurestaticapps.net");
+			_ = client.GetAsync($"/api/youtubechat?twitchid={fileName}");
 
 			log.LogInformation($"C# ServiceBus topic trigger function processed message: {completedStream}");
 
