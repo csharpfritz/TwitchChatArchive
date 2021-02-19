@@ -15,6 +15,8 @@ namespace Fritz.TwitchChatArchive
 		public override void Configure(IFunctionsHostBuilder builder)
 		{
 
+			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
 			builder.Services.AddHttpClient();
 
 		}

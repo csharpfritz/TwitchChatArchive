@@ -5,6 +5,9 @@
     <UserSecretsId>061bed99-7c99-4615-8967-a704434d2a41</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Azure.AI.TextAnalytics" Version="5.0.0" />
+    <PackageReference Include="ExcelDataReader" Version="3.6.0" />
+    <PackageReference Include="ExcelDataReader.DataSet" Version="3.6.0" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.11.0" />
     <PackageReference Include="Microsoft.Azure.Cosmos.Table" Version="1.0.6" />
     <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.0.0" />
@@ -13,6 +16,8 @@
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="3.0.10" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="2.1.1" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.29" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="5.0.0" />
+    <PackageReference Include="System.Text.Json" Version="5.0.1" />
     <PackageReference Include="WindowsAzure.Storage" Version="9.3.1" />
   </ItemGroup>
   <ItemGroup>
