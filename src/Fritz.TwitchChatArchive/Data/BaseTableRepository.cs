@@ -20,10 +20,12 @@ namespace Fritz.TwitchChatArchive.Data
 
 		protected virtual string TableName { get { return typeof(T).Name.Replace("_", ""); } }
 
+		protected virtual string ConnectionStringName { get { return "TwitchChatStorage"; } }
+
 		protected CloudTable GetCloudTable(string tableName)
 		{
 
-			var account = CloudStorageAccount.Parse(_Configuration["TwitchChatStorage"]);
+			var account = CloudStorageAccount.Parse(_Configuration[ConnectionStringName]);
 			var client = account.CreateCloudTableClient(new TableClientConfiguration());
 			client.GetTableReference(tableName).CreateIfNotExists();
 			return client.GetTableReference(tableName);

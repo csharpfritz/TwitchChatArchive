@@ -16,6 +16,7 @@ using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Fritz.TwitchChatArchive
 {
@@ -52,7 +53,7 @@ namespace Fritz.TwitchChatArchive
 		//	log.LogInformation($"C# Blob trigger function Processed blob\n Name:{name} \n Size: {myBlob.Length} Bytes");
 		//}
 
-		private async Task Analyze(IEnumerable<Comment> comments, ILogger logger)
+		private async Task Analyze(IEnumerable<Comment> comments, Content content, ILogger logger)
 		{
 
 			var client = new TextAnalyticsClient(endpoint, credentials);
@@ -85,16 +86,20 @@ namespace Fritz.TwitchChatArchive
 				{
 					ac = new AnalyzedComment
 					{
+						EntryId = content.Id.ToString(),
+						ContentType = content.ContentType,
+						ContentSource = content.Source,
+						ContentTitle = content.Title,
+						ContentPublishDate = content.PublicationDate,
 						CommentDate = comments.Skip(i).First().created_at,
 						CommentId = comments.Skip(i).First()._id,
-						EntryId = comments.Skip(i).First().content_id,
 						IdentifiedObjects = string.Join(", ", entities.Skip(i).First().Entities.Select(e => e.Text).ToArray()),
 						PositiveSentiment = sentiment.Skip(i).First().DocumentSentiment.ConfidenceScores.Positive,
 						NegativeSentiment = sentiment.Skip(i).First().DocumentSentiment.ConfidenceScores.Negative,
 						NeutralSentiment = sentiment.Skip(i).First().DocumentSentiment.ConfidenceScores.Neutral,
 						Text = comments.Skip(i).First().message.body,
 						Timestamp = comments.Skip(i).First().created_at,
-						UserNameHash = comments.Skip(i).First().commenter.display_name.GetHashCode().ToString()
+						UserNameHash = comments.Skip(i).First().commenter?.display_name?.GetHashCode().ToString() ?? "null"
 					};
 				}
 				catch (Exception ex)
@@ -110,7 +115,7 @@ namespace Fritz.TwitchChatArchive
 
 		}
 
-		private async Task Analyze(IEnumerable<AnalyzedComment> comments, ILogger logger)
+		private async Task Analyze(IEnumerable<AnalyzedComment> comments,  ILogger logger)
 		{
 
 			var client = new TextAnalyticsClient(endpoint, credentials);
@@ -164,38 +169,121 @@ namespace Fritz.TwitchChatArchive
 #if DEBUG
 		[FunctionName("PrototypeLoadChat")]
 		public async Task PrototypeLoadChat(
-			[TimerTrigger("* * * * 5 *", RunOnStartup =false)]TimerInfo timer,
+			[TimerTrigger("* * * * 5 *", RunOnStartup = false)] TimerInfo timer,
 			ILogger logger
-		) 
+		)
 		{
 
 			var account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("TwitchChatStorage"));
 			var blobClient = account.CreateCloudBlobClient();
 			var container = blobClient.GetContainerReference("chatlog");
-			var blob = container.GetBlockBlobReference("20201222_C# Corner with Instafluff: Mystery Detective Mod for Stardew Valley!.json");
+			var filename = "20210208_C# with CSharpFritz - Introducing ASP.NET Core Authentication and Authorization.json";
+			var blob = container.GetBlockBlobReference(filename);
 
 			var contents = await blob.DownloadTextAsync();
 			var comments = JsonSerializer.Deserialize<IEnumerable<Comment>>(contents);
 
-			await Analyze(comments, logger);
+			var theContent = new Content
+			{
+				ContentType = ContentType.LiveVideo,
+				Source = "VisualStudio@Twitch",
+				PublicationDate = DateTimeOffset.ParseExact(filename.Split('_')[0], "yyyyMMdd", CultureInfo.InvariantCulture),
+				Title = filename.Split('_')[1]
+			};
+			await Analyze(comments, theContent, logger);
 
+
+		}
+
+		[FunctionName("InitializeTwitchChat")]
+		public async Task InitializeTwitchChat(
+			[TimerTrigger("* * * * 5 *", RunOnStartup = false)] TimerInfo timer,
+			ILogger logger
+		)
+		{
+
+			var folder = "chatlog";
+			var account = CloudStorageAccount.Parse(Environment.GetEnvironmentVariable("TwitchChatStorage"));
+			var blobClient = account.CreateCloudBlobClient();
+			var container = blobClient.GetContainerReference(folder);
+
+			// Get all files and prepare to loop
+			BlobContinuationToken token = null;
+			var files = new List<IListBlobItem>();
+			do
+			{
+
+				var blobSegment = await container.ListBlobsSegmentedAsync(token);
+				token = blobSegment.ContinuationToken;
+				files.AddRange(blobSegment.Results);
+
+			} while (token != null);
+
+			Parallel.ForEach(files,
+				new ParallelOptions
+				{
+					MaxDegreeOfParallelism = 4
+				},
+				file =>
+				{
+
+					var filename = file.Uri.LocalPath.Substring(folder.Length+2);  //"20210208_C# with CSharpFritz - Introducing ASP.NET Core Authentication and Authorization.json";
+					var title = filename.Split('_')[1].Replace(".json","");
+					if (_Repo.TitleExists(title)) return;
+					var publishDate = DateTimeOffset.ParseExact(filename.Split('_')[0], "yyyyMMdd", CultureInfo.InvariantCulture);
+
+					// Download the blob
+					var blob = container.GetBlockBlobReference(filename);
+					string contents = string.Empty;
+
+					try
+					{
+						contents = blob.DownloadTextAsync().GetAwaiter().GetResult();
+					} catch (Exception ex)
+					{
+						logger.LogError(ex, $"Error while downloading blob '{filename}'");
+						return;
+					}
+					var comments = JsonSerializer.Deserialize<IEnumerable<Comment>>(contents);
+
+					var theContent = new Content
+					{
+						ContentType = ContentType.LiveVideo,
+						Source = "VisualStudio@Twitch",
+						PublicationDate = publishDate,
+						Title = title
+					};
+
+					Analyze(comments, theContent, logger).GetAwaiter().GetResult();
+
+				});
 
 		}
 
 		[FunctionName("PrototypeLoadPubble")]
 		public async Task PrototypeLoadPubble(
-			[TimerTrigger("* * * * 5 *", RunOnStartup = false)]TimerInfo Timer,
+			[TimerTrigger("* * * * 5 *", RunOnStartup = true)]TimerInfo Timer,
 			ILogger logger
 		) {
 
 			var ds = ReadExcelAsDataSet(@"C:\dev\TwitchChatArchive\posts_export_learntv_posts_fb1a4d63ccc140c5921316a279a789e6.xlsx");
-			var comments = ConvertPubbleToComments(ds);
+
+			// TODO: Identify HOW to qualify the pubble content
+			var theContent = new Content
+			{
+				ContentType = ContentType.LiveVideo,
+				Source = "LearnTV",
+				PublicationDate = new DateTimeOffset(new DateTime(2021, 1, 27)),
+				Title = "January 27, 2021 @ LearnTV"
+			};
+
+			var comments = ConvertPubbleToComments(ds, theContent);
 
 			await Analyze(comments, logger);
 
 		}
 
-		private IEnumerable<AnalyzedComment> ConvertPubbleToComments(DataSet ds)
+		private IEnumerable<AnalyzedComment> ConvertPubbleToComments(DataSet ds, Content theContent)
 		{
 
 			var tbl = ds.Tables["Questions"];
@@ -208,7 +296,12 @@ namespace Fritz.TwitchChatArchive
 
 				outList.Add(new AnalyzedComment
 				{
-					EntryId = cellOne,
+					EntryId = theContent.Id.ToString(),
+					ContentId = cellOne,
+					ContentType = theContent.ContentType,
+					ContentSource = theContent.Source,
+					ContentTitle = theContent.Title,
+					ContentPublishDate = theContent.PublicationDate,
 					CommentDate = DateTimeOffset.ParseExact(record[6].ToString(), "yyyy-MM-ddTHH:mm:ss \"GMT\"", CultureInfo.InvariantCulture),
 					CommentId = Guid.NewGuid().ToString(),
 					Text = record[5].ToString(),
@@ -222,18 +315,18 @@ namespace Fritz.TwitchChatArchive
 
 		[FunctionName("PrototypeLoadBlog")]
 		public async Task PrototypeLoadBlog(
-			[TimerTrigger("* * * * 5 *", RunOnStartup = false)] TimerInfo Timer,
+			[TimerTrigger("* * * * 5 *", RunOnStartup = true)] TimerInfo Timer,
 			ILogger logger
 		) {
 
 			var ds = ReadExcelAsDataSet(@"C:\dev\TwitchChatArchive\Xamarin Blog comments.xlsx");
-			var comments = ConvertBlogToComments(ds);
+			var comments = ConvertBlogToComments(ds, "Xamarin@Blog");
 
 			await Analyze(comments, logger);
 
 		}
 
-		private IEnumerable<AnalyzedComment> ConvertBlogToComments(DataSet ds)
+		private IEnumerable<AnalyzedComment> ConvertBlogToComments(DataSet ds, string blogSource)
 		{
 
 			// TODO: Pick up here
@@ -244,16 +337,21 @@ namespace Fritz.TwitchChatArchive
 			{
 
 				var cellOne = record[0].ToString();
-				if (string.IsNullOrEmpty(cellOne) || cellOne == "App ID") continue;
+				if (string.IsNullOrEmpty(cellOne) || cellOne == "comment_ID") continue;
 
 				outList.Add(new AnalyzedComment
 				{
 					EntryId = cellOne,
-					CommentDate = DateTimeOffset.ParseExact(record[6].ToString(), "yyyy-MM-ddTHH:mm:ss \"GMT\"", CultureInfo.InvariantCulture),
+					ContentId = record[11].ToString(),
+					ContentType = ContentType.BlogPost,
+					ContentSource = blogSource,
+					ContentTitle = record[12].ToString(),
+					ContentPublishDate = ParseGoofyExcelDateFormats(record[14].ToString()),
+					CommentDate = ParseGoofyExcelDateFormats(record[5].ToString()),
 					CommentId = Guid.NewGuid().ToString(),
-					Text = record[5].ToString(),
-					UserNameHash = record[1].GetHashCode().ToString()
-				});
+					Text = record[6].ToString(),
+					UserNameHash = record[2].GetHashCode().ToString()
+				});;
 			}
 
 			return outList;
@@ -263,6 +361,19 @@ namespace Fritz.TwitchChatArchive
 
 
 #endif
+
+		private DateTimeOffset ParseGoofyExcelDateFormats(string excelDate) {
+
+			if (DateTimeOffset.TryParseExact(excelDate, "M/d/yyyy HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedMdyDate))
+				return parsedMdyDate;
+
+			if (DateTimeOffset.TryParseExact(excelDate, "dd-MM-yyyy HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDmyDate))
+				return parsedDmyDate;
+
+			throw new Exception("Not a known date format");
+
+		}
+
 
 		private DataSet ReadExcelAsDataSet(string path) {
 
